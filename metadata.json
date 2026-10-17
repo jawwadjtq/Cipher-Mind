@@ -1,0 +1,6 @@
+{
+  "name": "CipherMind AI",
+  "description": "Universal encryption, decryption, and cryptanalysis workbench with automatic multi-layer cipher solving, deterministic algorithms, and Gemini-powered explanations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
