@@ -3,10 +3,11 @@
  * Securely proxies Gemini API for cryptanalytic explanation and provides Vite middleware
  */
 
-import express, { Request, Response } from 'express';
-import { createServer as createViteServer } from 'vite';
+import express from 'express';
+import type { Request, Response } from 'express';
 import { GoogleGenAI, Type } from '@google/genai';
 import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 
@@ -401,12 +402,17 @@ Provide a professional cryptanalytic assessment of what family this ciphertext m
 
 // Setup Vite middleware in dev or static files in production
 async function startServer() {
-  if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+  const distDir = path.resolve(__dirname, 'dist');
+  const distIndex = path.resolve(distDir, 'index.html');
+  const isProduction = process.env.NODE_ENV === 'production' || fs.existsSync(distIndex);
+
+  if (isProduction) {
+    app.use(express.static(distDir));
     app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      res.sendFile(distIndex);
     });
   } else {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -415,7 +421,7 @@ async function startServer() {
   }
 
   app.listen(port, '0.0.0.0', () => {
-    console.log(`CipherMind AI server active on http://0.0.0.0:${port}`);
+    console.log(`CipherMind AI server active on http://0.0.0.0:${port} [mode: ${isProduction ? 'production' : 'development'}]`);
   });
 }
 
