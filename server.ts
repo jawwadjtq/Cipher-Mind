@@ -408,7 +408,11 @@ async function startServer() {
 
   if (isProduction) {
     app.use(express.static(distDir));
-    app.get('*', (_req: Request, res: Response) => {
+    app.get('*', (req: Request, res: Response) => {
+      if (req.path.startsWith('/api/')) {
+        res.status(404).json({ error: 'Endpoint not found' });
+        return;
+      }
       res.sendFile(distIndex);
     });
   } else {
