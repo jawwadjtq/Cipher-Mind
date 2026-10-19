@@ -713,12 +713,25 @@ export function autoSolveAll(
 
   const finalCandidates = Array.from(uniqueMap.values());
 
-  // Rank by totalScore descending
+  // Rank strictly: Most accurate and correct answer first!
   finalCandidates.sort((a, b) => {
+    // 1. Total score descending
     if (b.metrics.totalScore !== a.metrics.totalScore) {
       return b.metrics.totalScore - a.metrics.totalScore;
     }
-    // Tie break by depth (simpler first)
+    // 2. Proportion of recognized dictionary words descending
+    if (b.metrics.wordMatchRatio !== a.metrics.wordMatchRatio) {
+      return b.metrics.wordMatchRatio - a.metrics.wordMatchRatio;
+    }
+    // 3. Absolute count of recognized words descending
+    if (b.metrics.recognizedWords.length !== a.metrics.recognizedWords.length) {
+      return b.metrics.recognizedWords.length - a.metrics.recognizedWords.length;
+    }
+    // 4. Closeness to expected frequency distribution (lower chi-squared is better)
+    if (a.metrics.chiSquared !== b.metrics.chiSquared) {
+      return a.metrics.chiSquared - b.metrics.chiSquared;
+    }
+    // 5. Simpler pipeline first (Occam's razor: 1 layer before 2 layers)
     return a.depth - b.depth;
   });
 

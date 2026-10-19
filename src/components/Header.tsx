@@ -51,10 +51,15 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <button
             onClick={() => onSelectTab('autosolve')}
-            className="text-left font-bold tracking-tight text-slate-100 hover:text-white transition-colors"
+            className="flex items-center gap-2.5 text-left font-bold tracking-tight text-slate-100 hover:text-white transition-colors"
           >
-            <span className="text-lg">CipherMind</span>
-            <span className="ml-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-400">AI</span>
+            <div>
+              <span className="text-lg">CipherMind</span>
+              <span className="ml-1.5 text-xs font-semibold uppercase tracking-wider text-indigo-400">AI</span>
+            </div>
+            <span className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-violet-500/15 border border-indigo-500/30 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-300 shadow-sm">
+              Made by Jawad
+            </span>
           </button>
         </div>
 

@@ -12,6 +12,8 @@ import {
   ClipboardPaste,
   SlidersHorizontal,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Layers,
   ArrowRight,
   HelpCircle,
@@ -20,6 +22,8 @@ import {
   CheckCircle2,
   Calculator,
   Languages,
+  Filter,
+  Award,
 } from 'lucide-react';
 import { AutoSolveOptions, CipherCandidate, FrequencyAnalysis } from '../crypto/types';
 import { autoSolveAll, inspectInput, generateStepExplanation } from '../crypto/solver';
@@ -91,6 +95,9 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
   const [aiIdentification, setAiIdentification] = useState<any | null>(null);
   const [isAiIdentifying, setIsAiIdentifying] = useState<boolean>(false);
   const [expandedLogicIds, setExpandedLogicIds] = useState<Record<string, boolean>>({});
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [filterNonsense, setFilterNonsense] = useState<boolean>(true);
+  const PAGE_SIZE = 26;
 
   // Character counts
   const charCount = inputText.length;
@@ -102,6 +109,7 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
 
     setIsSolving(true);
     setAiIdentification(null);
+    setCurrentPage(1);
 
     // Yield to let UI update loading state
     setTimeout(() => {
@@ -115,6 +123,7 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
       const solved = autoSolveAll(inputText, opts);
       setResults(solved);
       setIsSolving(false);
+      setCurrentPage(1);
 
       if (solved.candidates.length > 0) {
         onSaveToHistory({
@@ -131,6 +140,7 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
     setResults({ candidates: [], inspection: null, elapsedMs: 0 });
     setAiExplanations({});
     setAiIdentification(null);
+    setCurrentPage(1);
   };
 
   const handlePaste = async () => {
@@ -205,27 +215,73 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
   };
 
   // Filter & Sort
-  const filteredCandidates = results.candidates.filter((cand) => {
+  const categoryFiltered = results.candidates.filter((cand) => {
     if (activeCategoryFilter === 'all') return true;
     if (activeCategoryFilter === 'multilayer') return cand.depth > 1;
     return cand.primaryCategory === activeCategoryFilter;
   });
 
-  const sortedCandidates = [...filteredCandidates].sort((a, b) => {
-    if (sortBy === 'score') return b.metrics.totalScore - a.metrics.totalScore;
+  // Detect whether sensible matches exist with recognized vocabulary or solid frequency fit
+  const hasSensibleMatches = categoryFiltered.some(
+    (c) => c.metrics.recognizedWords.length > 0 || c.metrics.totalScore >= 35
+  );
+
+  // Filter out meaningless gibberish noise when sensible matches exist
+  const noiseFiltered = categoryFiltered.filter((cand) => {
+    if (!filterNonsense || !hasSensibleMatches) return true;
+    // Keep answers that have at least 1 recognized dictionary word OR a totalScore >= 20
+    return cand.metrics.recognizedWords.length > 0 || cand.metrics.totalScore >= 20;
+  });
+
+  const noiseCountPruned = categoryFiltered.length - noiseFiltered.length;
+
+  // Rank strictly: Most accurate and correct answer first!
+  const sortedCandidates = [...noiseFiltered].sort((a, b) => {
+    if (sortBy === 'score') {
+      // 1. Highest total score first
+      if (b.metrics.totalScore !== a.metrics.totalScore) {
+        return b.metrics.totalScore - a.metrics.totalScore;
+      }
+      // 2. Proportion of recognized dictionary words
+      if (b.metrics.wordMatchRatio !== a.metrics.wordMatchRatio) {
+        return b.metrics.wordMatchRatio - a.metrics.wordMatchRatio;
+      }
+      // 3. Absolute recognized words count
+      if (b.metrics.recognizedWords.length !== a.metrics.recognizedWords.length) {
+        return b.metrics.recognizedWords.length - a.metrics.recognizedWords.length;
+      }
+      // 4. Closeness to natural Chi-squared frequency (lower is better)
+      if (a.metrics.chiSquared !== b.metrics.chiSquared) {
+        return a.metrics.chiSquared - b.metrics.chiSquared;
+      }
+      // 5. Simpler pipeline first
+      return a.depth - b.depth;
+    }
     if (sortBy === 'depth') return a.depth - b.depth;
     if (sortBy === 'name') return a.primaryCipherName.localeCompare(b.primaryCipherName);
     return 0;
   });
+
+  // Pagination: Top 26 answers at a time
+  const totalPages = Math.max(1, Math.ceil(sortedCandidates.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedCandidates = sortedCandidates.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const startRank = sortedCandidates.length > 0 ? (safePage - 1) * PAGE_SIZE + 1 : 0;
+  const endRank = Math.min(safePage * PAGE_SIZE, sortedCandidates.length);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
       {/* Title & Philosophy */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/60 pb-5">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">
-            {t.appSubtitle}
-          </h1>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">
+              {t.appSubtitle}
+            </h1>
+            <span className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-violet-500/15 border border-indigo-500/30 px-2.5 py-0.5 text-xs font-semibold text-indigo-300">
+              Made by Jawad
+            </span>
+          </div>
           <p className="mt-1 text-sm text-slate-400">
             Multi-layer automated cryptanalysis testing classical ciphers, encodings, and modular permutations with mathematical precision.
           </p>
@@ -505,7 +561,10 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
                 <button
                   key={filter.id}
                   type="button"
-                  onClick={() => setActiveCategoryFilter(filter.id)}
+                  onClick={() => {
+                    setActiveCategoryFilter(filter.id);
+                    setCurrentPage(1);
+                  }}
                   className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors whitespace-nowrap shrink-0 ${
                     activeCategoryFilter === filter.id
                       ? 'bg-slate-800 text-white'
@@ -517,6 +576,72 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Meaningful Filter & Top 26 View Control Bar */}
+          {results.candidates.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-slate-800/80 bg-slate-900/60 p-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+                  <Award className="h-4 w-4 text-amber-400" />
+                  Top 26 Answers Shown
+                </span>
+                <span className="text-slate-400 font-mono text-[11px]">
+                  (Showing {startRank}–{endRank} of {sortedCandidates.length})
+                </span>
+              </div>
+
+              {/* Filter out noise toggle */}
+              {hasSensibleMatches && (
+                <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white select-none text-[11px] font-medium bg-slate-850 px-2.5 py-1 rounded-md border border-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={filterNonsense}
+                    onChange={(e) => {
+                      setFilterNonsense(e.target.checked);
+                      setCurrentPage(1);
+                    }}
+                    className="h-3.5 w-3.5 rounded border-slate-700 bg-slate-900 text-indigo-500 focus:ring-0 cursor-pointer"
+                  />
+                  <span>Filter meaningless noise</span>
+                  {filterNonsense && noiseCountPruned > 0 && (
+                    <span className="rounded bg-slate-800 border border-slate-700/80 px-1.5 py-0.2 text-[10px] text-slate-400 font-mono">
+                      {noiseCountPruned} hidden
+                    </span>
+                  )}
+                </label>
+              )}
+            </div>
+          )}
+
+          {/* Top Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between gap-2 px-1 text-xs">
+              <span className="text-slate-400">
+                Page <strong className="text-slate-200">{safePage}</strong> of{' '}
+                <strong className="text-slate-200">{totalPages}</strong>
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={safePage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-1 text-xs font-medium text-slate-300 hover:border-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-1 text-xs font-medium text-slate-300 hover:border-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next 26
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Comparison Action Bar */}
           {selectedForCompare.length > 0 && (
@@ -542,9 +667,11 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
           )}
 
           {/* Candidate Cards List */}
-          {sortedCandidates.length > 0 ? (
+          {paginatedCandidates.length > 0 ? (
             <div className="space-y-3.5">
-              {sortedCandidates.map((cand, idx) => {
+              {paginatedCandidates.map((cand, idx) => {
+                const rankNumber = (safePage - 1) * PAGE_SIZE + idx + 1;
+                const isWinningAnswer = rankNumber === 1;
                 const score = cand.metrics.totalScore;
                 const scoreColor =
                   score >= 75
@@ -560,13 +687,36 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
                 return (
                   <div
                     key={cand.id}
-                    className="rounded-xl border border-slate-800/80 bg-slate-900/30 p-4 transition-all hover:border-slate-700/80 hover:bg-slate-900/50"
+                    className={`rounded-xl border p-4 transition-all ${
+                      isWinningAnswer
+                        ? 'border-emerald-500/50 bg-gradient-to-b from-emerald-950/20 via-slate-900/50 to-slate-900/30 shadow-lg shadow-emerald-950/20 ring-1 ring-emerald-500/20'
+                        : 'border-slate-800/80 bg-slate-900/30 hover:border-slate-700/80 hover:bg-slate-900/50'
+                    }`}
                   >
+                    {/* Winning #1 Most Correct Solution Highlight Header */}
+                    {isWinningAnswer && (
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-950/50 border border-emerald-500/40 px-3 py-1.5 text-xs">
+                        <div className="flex items-center gap-1.5 font-bold text-emerald-300">
+                          <Award className="h-4 w-4 text-amber-400 shrink-0" />
+                          <span>👑 #1 Most Probable Solution (Highest Accuracy)</span>
+                        </div>
+                        <span className="text-[11px] text-emerald-400/90 font-mono font-medium">
+                          Best fit out of {sortedCandidates.length} evaluated candidates
+                        </span>
+                      </div>
+                    )}
+
                     {/* Candidate Card Top Row */}
                     <div className="flex items-center justify-between gap-3 mb-2.5">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-mono text-xs text-slate-400 font-bold shrink-0">
-                          #{idx + 1}
+                        <span
+                          className={`font-mono text-xs font-bold shrink-0 px-2 py-0.5 rounded ${
+                            isWinningAnswer
+                              ? 'bg-emerald-500 text-slate-950'
+                              : 'text-slate-400 bg-slate-800/60'
+                          }`}
+                        >
+                          #{rankNumber}
                         </span>
                         <h3 className="font-semibold text-slate-200 text-sm truncate">
                           {cand.primaryCipherName}
@@ -610,7 +760,11 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
                     </div>
 
                     {/* Decrypted Plaintext Output Preview */}
-                    <div className="relative group rounded-lg bg-slate-950/80 p-3 border border-slate-800/70 font-mono text-xs text-slate-200 leading-relaxed overflow-x-auto max-h-36 selection:bg-indigo-500/30">
+                    <div className={`relative group rounded-lg p-3 border font-mono text-xs text-slate-200 leading-relaxed overflow-x-auto max-h-36 selection:bg-indigo-500/30 ${
+                      isWinningAnswer
+                        ? 'bg-slate-950/95 border-emerald-500/30 ring-1 ring-emerald-500/20'
+                        : 'bg-slate-950/80 border-slate-800/70'
+                    }`}>
                       <pre className="whitespace-pre-wrap break-words">{cand.plaintext}</pre>
                     </div>
 
@@ -704,7 +858,11 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
                         <button
                           type="button"
                           onClick={() => handleCopyText(`plain-${cand.id}`, cand.plaintext)}
-                          className="flex items-center gap-1 rounded px-2.5 py-1 text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
+                          className={`flex items-center gap-1 rounded px-2.5 py-1 transition-colors ${
+                            isWinningAnswer
+                              ? 'bg-emerald-600/30 text-emerald-200 hover:bg-emerald-600/50'
+                              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                          }`}
                         >
                           {copiedId === `plain-${cand.id}` ? (
                             <Check className="h-3.5 w-3.5 text-emerald-400" />
@@ -772,6 +930,69 @@ export const AutoSolveView: React.FC<AutoSolveViewProps> = ({
                   </div>
                 );
               })}
+
+              {/* Bottom Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800/60 text-xs">
+                  <span className="text-slate-400">
+                    Showing solutions <strong className="text-slate-200">{startRank}–{endRank}</strong> of <strong className="text-slate-200">{sortedCandidates.length}</strong>
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={safePage <= 1}
+                      onClick={() => {
+                        setCurrentPage((p) => Math.max(1, p - 1));
+                        window.scrollTo({ top: 300, behavior: 'smooth' });
+                      }}
+                      className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs font-medium text-slate-300 hover:border-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                      Previous
+                    </button>
+
+                    <div className="hidden sm:flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum = i + 1;
+                        if (totalPages > 5 && safePage > 3) {
+                          pageNum = safePage - 3 + i;
+                          if (pageNum > totalPages) pageNum = totalPages - 4 + i;
+                        }
+                        return (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => {
+                              setCurrentPage(pageNum);
+                              window.scrollTo({ top: 300, behavior: 'smooth' });
+                            }}
+                            className={`h-7 w-7 rounded-lg text-xs font-mono font-medium transition-colors ${
+                              safePage === pageNum
+                                ? 'bg-indigo-600 text-white font-bold'
+                                : 'border border-slate-800 bg-slate-900/80 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={safePage >= totalPages}
+                      onClick={() => {
+                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                        window.scrollTo({ top: 300, behavior: 'smooth' });
+                      }}
+                      className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs font-medium text-slate-300 hover:border-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next 26
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : results.inspection ? (
             /* No Results / Low Confidence Notice */

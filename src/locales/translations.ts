@@ -125,6 +125,14 @@ export interface TranslationDictionary {
   limitations: string;
   workedExample: string;
   languageSelectLabel: string;
+  top26Solutions?: string;
+  mostProbableSolution?: string;
+  filterNonsense?: string;
+  showingSolutions?: string;
+  previousPage?: string;
+  nextPage?: string;
+  page?: string;
+  allAnswers?: string;
 }
 
 export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
@@ -214,6 +222,14 @@ export const TRANSLATIONS: Record<SupportedLanguage, TranslationDictionary> = {
     limitations: 'Cryptanalysis & Known Limitations',
     workedExample: 'Worked Step-by-Step Example',
     languageSelectLabel: 'Language',
+    top26Solutions: 'Top 26 Ranked Solutions',
+    mostProbableSolution: 'Most Probable Solution',
+    filterNonsense: 'Filter meaningless noise (hides 0-word gibberish)',
+    showingSolutions: 'Showing',
+    previousPage: 'Previous',
+    nextPage: 'Next 26',
+    page: 'Page',
+    allAnswers: 'All Answers',
   },
   es: {
     appTitle: 'CipherMind AI',

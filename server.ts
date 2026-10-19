@@ -419,4 +419,14 @@ async function startServer() {
   });
 }
 
+// Process-level crash prevention for concurrent multi-device reliability
+process.on('uncaughtException', (err) => {
+  console.error('CipherMind AI server uncaught exception isolated:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('CipherMind AI server unhandled rejection isolated:', reason);
+});
+
 startServer();
+

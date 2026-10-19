@@ -14,6 +14,7 @@ import { HistoryModal, HistoryItem } from './components/HistoryModal';
 import { CandidateCompareModal } from './components/CandidateCompareModal';
 import { CandidateDetailModal } from './components/CandidateDetailModal';
 import { DiagnosticTestModal } from './components/DiagnosticTestModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { CipherCandidate } from './crypto/types';
 import { SupportedLanguage } from './locales/translations';
 
@@ -75,9 +76,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
-      {/* Top Bar Contract Navigation */}
-      <Header
+    <ErrorBoundary>
+      <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
+        {/* Top Bar Contract Navigation */}
+        <Header
         activeTab={activeTab}
         onSelectTab={setActiveTab}
         onOpenDiagnostic={() => setShowDiagnosticModal(true)}
@@ -186,8 +188,12 @@ export default function App() {
       {/* Quiet Academic Footer adhering to frontend design constitution */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-xs text-slate-500">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold text-slate-400">CipherMind AI</span>
+            <span>·</span>
+            <span className="inline-flex items-center rounded-full bg-indigo-950/70 border border-indigo-700/50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-300">
+              Made by Jawad
+            </span>
             <span>·</span>
             <span>Universal Cryptographic & Decryption Workbench</span>
           </div>
@@ -199,5 +205,6 @@ export default function App() {
         </div>
       </footer>
     </div>
+  </ErrorBoundary>
   );
 }
