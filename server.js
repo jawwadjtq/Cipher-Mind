@@ -22,11 +22,27 @@ if (apiKey) {
     }
   });
 }
+app.get("/api", (_req, res) => {
+  res.json({
+    status: "ok",
+    name: "CipherMind AI API",
+    version: "1.0.0",
+    endpoints: ["/api/health", "/api/gemini/explain", "/api/gemini/identify", "/api/diagnostics"]
+  });
+});
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
     aiEnabled: Boolean(ai),
     serverTime: (/* @__PURE__ */ new Date()).toISOString()
+  });
+});
+app.get("/api/diagnostics", (_req, res) => {
+  res.json({
+    status: "ok",
+    serverUptimeSeconds: Math.floor(process.uptime()),
+    nodeVersion: process.version,
+    memoryUsageMb: Math.round(process.memoryUsage().heapUsed / 1024 / 1024)
   });
 });
 function getLocalizedServerExplain(candidate, targetLang) {
@@ -335,6 +351,10 @@ Provide a professional cryptanalytic assessment of what family this ciphertext m
   }
 });
 async function startServer() {
+  const publicDir = path.resolve(__dirname, "public");
+  if (fs.existsSync(publicDir)) {
+    app.use(express.static(publicDir));
+  }
   const distDir = path.resolve(__dirname, "dist");
   const distIndex = path.resolve(distDir, "index.html");
   const isProduction = process.env.NODE_ENV === "production" || fs.existsSync(distIndex);
