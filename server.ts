@@ -438,5 +438,10 @@ process.on('unhandledRejection', (reason) => {
   console.error('CipherMind AI server unhandled rejection isolated:', reason);
 });
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export { app };
+export default app;
 

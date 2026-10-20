@@ -7,7 +7,9 @@ import { caesarDecrypt, caesarEncrypt, crackCaesarAllShifts, rot13, rot47 } from
 import { atbash } from '../ciphers/atbash';
 import { affineDecrypt, affineEncrypt, gcd, crackAffineAllKeys } from '../ciphers/affine';
 import { vigenereDecrypt, vigenereEncrypt, beaufortCipher, autokeyDecrypt, autokeyEncrypt } from '../ciphers/vigenere';
-import { railFenceDecrypt, railFenceEncrypt, reverseText } from '../ciphers/transposition';
+import { railFenceDecrypt, railFenceEncrypt, reverseText, columnarEncrypt, columnarDecrypt } from '../ciphers/transposition';
+import { monoalphabeticEncrypt, monoalphabeticDecrypt, normalizeSubstitutionKey } from '../ciphers/monoalphabetic';
+import { polybiusEncrypt, polybiusDecrypt } from '../ciphers/polybius';
 import { baconDecrypt, baconEncrypt } from '../ciphers/bacon';
 import { playfairDecrypt, playfairEncrypt } from '../ciphers/playfair';
 import { hillDecrypt2x2, hillEncrypt2x2, isInvertibleHill2x2 } from '../ciphers/hill';
@@ -241,6 +243,42 @@ export function runCipherDiagnosticTests(): TestResult[] {
     if (!match) {
       throw new Error('Auto-solver failed to find multi-layer Base64 + Caesar solution');
     }
+  });
+
+  // 14. Monoalphabetic Substitution Cipher
+  test('Monoalphabetic Keyed Alphabet Reversibility', 'Substitution', () => {
+    const text = 'THE SECRET ARCHIVES ARE PROTECTED';
+    const keyword = 'ZEBRAS';
+    const enc = monoalphabeticEncrypt(text, keyword);
+    const dec = monoalphabeticDecrypt(enc, keyword);
+    if (dec !== text) throw new Error(`Monoalphabetic keyed decrypt failed: expected "${text}", got "${dec}"`);
+  });
+
+  test('Monoalphabetic Full 26-Letter Alphabet Mapping', 'Substitution', () => {
+    const text = 'CRYPTOGRAPHY AND QUANTUM SYSTEMS';
+    const alphabet = 'QWERTYUIOPASDFGHJKLZXCVBNM';
+    const enc = monoalphabeticEncrypt(text, alphabet);
+    const dec = monoalphabeticDecrypt(enc, alphabet);
+    if (dec !== text) throw new Error(`Monoalphabetic 26-letter decrypt failed: got "${dec}"`);
+  });
+
+  // 15. Polybius Square Cipher
+  test('Polybius Square 5x5 Coordinate Encoding & Decoding', 'Substitution', () => {
+    const text = 'HELLO WORLD';
+    const enc = polybiusEncrypt(text, 'KEYWORD');
+    const dec = polybiusDecrypt(enc, 'KEYWORD');
+    // Polybius replaces J with I
+    const expected = text.replace(/J/g, 'I');
+    if (dec !== expected) throw new Error(`Polybius failed: expected "${expected}", got "${dec}"`);
+  });
+
+  // 16. Columnar Transposition Reversibility
+  test('Columnar Transposition Reversibility', 'Transposition', () => {
+    const text = 'DEFEND THE EAST WALL OF THE FORTRESS';
+    const key = 'CIPHER';
+    const enc = columnarEncrypt(text, key);
+    const dec = columnarDecrypt(enc, key);
+    if (dec !== text) throw new Error(`Columnar decrypt mismatch: expected "${text}", got "${dec}"`);
   });
 
   return results;

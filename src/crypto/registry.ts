@@ -82,6 +82,42 @@ export const CIPHER_REGISTRY: CipherDefinition[] = [
     supportedInAutoSolver: true,
   },
   {
+    id: 'monoalphabetic',
+    name: 'Monoalphabetic Substitution',
+    category: 'substitution',
+    shortDescription: 'General substitution cipher mapping each letter of the alphabet to a unique letter of a key alphabet.',
+    historicalContext:
+      'Used across millennia from classical antiquity to Renaissance diplomacy. Arab mathematician Al-Kindi introduced frequency analysis in the 9th century specifically to break monoalphabetic substitution ciphers.',
+    formula: 'E(x) = Alphabet_Key[x] \n D(y) = Standard_Alphabet[Alphabet_Key.indexOf(y)]',
+    keyRequirements: 'A 26-letter substitution alphabet (e.g., "ZEBRACDFGHIJKLMNOPQSTUVWXY") or a secret keyword expanded into a unique alphabet.',
+    limitations: 'Susceptible to single-letter, bigram, and trigram frequency analysis because letter frequency distributions remain invariant under 1-to-1 mapping.',
+    workedExample: {
+      plaintext: 'DEFEND THE WALL',
+      key: 'Keyword: ZEBRAS (ZEBRACDFGHIJKLMNOPQSTUVWXY)',
+      ciphertext: 'BCEEKA ZEB UZHH',
+      explanation: 'D maps to B, E to C, F to E, N to K, etc., based on the keyed alphabet.',
+    },
+    supportedInAutoSolver: true,
+  },
+  {
+    id: 'polybius',
+    name: 'Polybius Square',
+    category: 'substitution',
+    shortDescription: 'A 5x5 coordinate grid cipher encoding letters into row-column numeral pairs.',
+    historicalContext:
+      'Devised by the Greek historian Polybius in the 2nd century BC for optical signaling with torches. Widely regarded as a crucial conceptual forerunner of telegraphy, ASCII, and the Nihilist/ADFGVX ciphers.',
+    formula: 'Grid[row, col] = Letter \n E(letter) = (row+1)(col+1)',
+    keyRequirements: '5x5 grid combining I/J, optionally permuted by a secret keyword.',
+    limitations: 'Doubles ciphertext length and vulnerable to coordinate frequency analysis.',
+    workedExample: {
+      plaintext: 'HELLO',
+      key: 'Standard 5x5 Grid',
+      ciphertext: '23 15 31 31 34',
+      explanation: 'H is in row 2 col 3 ("23"), E is in row 1 col 5 ("15"), L is row 3 col 1 ("31"), O is row 3 col 4 ("34").',
+    },
+    supportedInAutoSolver: true,
+  },
+  {
     id: 'vigenere',
     name: 'Vigenère Cipher',
     category: 'polyalphabetic',

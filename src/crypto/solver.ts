@@ -12,6 +12,11 @@ import {
 } from './ciphers/caesar';
 import { atbash } from './ciphers/atbash';
 import {
+  monoalphabeticDecrypt,
+  frequencyMonoalphabeticGuess,
+} from './ciphers/monoalphabetic';
+import { polybiusDecrypt } from './ciphers/polybius';
+import {
   AFFINE_VALID_A,
   affineDecrypt,
   crackAffineAllKeys,
@@ -514,6 +519,96 @@ export function autoSolveAll(
             false
           );
         }
+      }
+    }
+
+    // Polybius Square: Test if input consists of digit pairs (1-5)
+    const polyDigits = currentText.replace(/[^1-5]/g, '');
+    if (polyDigits.length >= 4 && polyDigits.length % 2 === 0 && polyDigits.length >= currentText.replace(/[^0-9a-zA-Z]/g, '').length * 0.8) {
+      try {
+        const polyDec = polybiusDecrypt(currentText);
+        if (polyDec && polyDec.length > 0) {
+          evaluateTransform(
+            polyDec,
+            {
+              cipherId: 'polybius_standard',
+              cipherName: 'Polybius Square (5x5)',
+              category: 'substitution',
+              parameters: { grid: 'Standard 5x5 (A-Z, I=J)' },
+              description: 'Decoded coordinate numeral pairs from standard Polybius 5x5 square.',
+            },
+            true
+          );
+        }
+      } catch {
+        // Ignore invalid coordinate sequences
+      }
+    }
+
+    // Monoalphabetic Substitution: Keyed alphabets & Frequency heuristic
+    if (options.knownKey) {
+      try {
+        const monoKnown = monoalphabeticDecrypt(currentText, options.knownKey);
+        evaluateTransform(
+          monoKnown,
+          {
+            cipherId: `mono_key_${options.knownKey}`,
+            cipherName: `Monoalphabetic Substitution (Key: ${options.knownKey})`,
+            category: 'substitution',
+            parameters: { key: options.knownKey },
+            description: `Decrypted using substitution alphabet derived from key "${options.knownKey}".`,
+          },
+          true
+        );
+      } catch {
+        // Ignore invalid keys
+      }
+    }
+
+    // Test prominent historical keyed alphabets
+    const sampleKeyedWords = ['ZEBRAS', 'KEYWORD', 'SECRET', 'CRYPTO', 'CIPHER', 'MATRIX'];
+    for (const kw of sampleKeyedWords) {
+      try {
+        const monoDec = monoalphabeticDecrypt(currentText, kw);
+        const prelim = scoreCandidate(monoDec, ciphertext.length, nextDepth);
+        if (prelim.totalScore >= 35) {
+          evaluateTransform(
+            monoDec,
+            {
+              cipherId: `mono_keyed_${kw}`,
+              cipherName: `Monoalphabetic Substitution (Key: ${kw})`,
+              category: 'substitution',
+              parameters: { keyword: kw },
+              description: `Decrypted using keyed substitution alphabet generated from "${kw}".`,
+            },
+            false
+          );
+        }
+      } catch {
+        // Continue
+      }
+    }
+
+    // Frequency-based monoalphabetic heuristic alignment
+    if (currentText.length >= 20) {
+      try {
+        const freqGuess = frequencyMonoalphabeticGuess(currentText);
+        const prelim = scoreCandidate(freqGuess, ciphertext.length, nextDepth);
+        if (prelim.totalScore >= 35) {
+          evaluateTransform(
+            freqGuess,
+            {
+              cipherId: 'mono_frequency_heuristic',
+              cipherName: 'Monoalphabetic Substitution (Frequency Fit)',
+              category: 'substitution',
+              parameters: { method: 'ETAOIN Frequency Alignment' },
+              description: 'Substituted letters mapping highest observed ciphertext frequencies to standard English frequencies.',
+            },
+            false
+          );
+        }
+      } catch {
+        // Continue
       }
     }
 

@@ -18,6 +18,18 @@ import {
 } from 'lucide-react';
 import { caesarEncrypt, rot13, rot47, caesarDecrypt } from '../crypto/ciphers/caesar';
 import { atbash } from '../crypto/ciphers/atbash';
+import {
+  monoalphabeticEncrypt,
+  monoalphabeticDecrypt,
+  generateRandomSubstitutionAlphabet,
+  normalizeSubstitutionKey,
+  STANDARD_ALPHABET,
+} from '../crypto/ciphers/monoalphabetic';
+import {
+  polybiusEncrypt,
+  polybiusDecrypt,
+  generatePolybiusGrid,
+} from '../crypto/ciphers/polybius';
 import { affineEncrypt, affineDecrypt, AFFINE_VALID_A, gcd } from '../crypto/ciphers/affine';
 import {
   vigenereEncrypt,
@@ -30,6 +42,7 @@ import {
   railFenceEncrypt,
   railFenceDecrypt,
   columnarEncrypt,
+  columnarDecrypt,
   reverseText,
 } from '../crypto/ciphers/transposition';
 import { playfairEncrypt, playfairDecrypt } from '../crypto/ciphers/playfair';
@@ -78,6 +91,10 @@ export const EncryptView: React.FC<EncryptViewProps> = ({
   const [baconMode, setBaconMode] = useState<'26' | '24'>('26');
   const [xorByte, setXorByte] = useState<number>(66); // 0x42
 
+  const [substitutionKey, setSubstitutionKey] = useState<string>('ZEBRAS');
+  const [polybiusKey, setPolybiusKey] = useState<string>('');
+  const [polybiusSeparator, setPolybiusSeparator] = useState<string>(' ');
+
   const [ciphertext, setCiphertext] = useState<string>('');
   const [reversedPlaintext, setReversedPlaintext] = useState<string>('');
   const [isReversible, setIsReversible] = useState<boolean>(true);
@@ -89,6 +106,13 @@ export const EncryptView: React.FC<EncryptViewProps> = ({
     switch (selectedCipher) {
       case 'caesar':
         setCaesarShift(Math.floor(Math.random() * 25) + 1);
+        break;
+      case 'monoalphabetic':
+        setSubstitutionKey(generateRandomSubstitutionAlphabet());
+        break;
+      case 'polybius':
+        const polyWords = ['', 'CIPHER', 'MATRIX', 'SECRET', 'KNOWLEDGE'];
+        setPolybiusKey(polyWords[Math.floor(Math.random() * polyWords.length)]);
         break;
       case 'affine':
         const randomA = AFFINE_VALID_A[Math.floor(Math.random() * AFFINE_VALID_A.length)];
@@ -172,9 +196,17 @@ export const EncryptView: React.FC<EncryptViewProps> = ({
           enc = railFenceEncrypt(plaintext, railCount);
           dec = railFenceDecrypt(enc, railCount);
           break;
+        case 'monoalphabetic':
+          enc = monoalphabeticEncrypt(plaintext, substitutionKey);
+          dec = monoalphabeticDecrypt(enc, substitutionKey);
+          break;
+        case 'polybius':
+          enc = polybiusEncrypt(plaintext, polybiusKey, polybiusSeparator);
+          dec = polybiusDecrypt(enc, polybiusKey);
+          break;
         case 'columnar':
           enc = columnarEncrypt(plaintext, keyWord);
-          dec = enc; // Columnar reverse requires padding match
+          dec = columnarDecrypt(enc, keyWord);
           break;
         case 'playfair':
           enc = playfairEncrypt(plaintext, keyWord);
@@ -240,6 +272,9 @@ export const EncryptView: React.FC<EncryptViewProps> = ({
     hillMatrix,
     baconMode,
     xorByte,
+    substitutionKey,
+    polybiusKey,
+    polybiusSeparator,
   ]);
 
   const handleCopy = () => {
@@ -289,6 +324,8 @@ export const EncryptView: React.FC<EncryptViewProps> = ({
               >
                 <optgroup label="Classical Substitution">
                   <option value="caesar">Caesar Cipher (Shift 0-25)</option>
+                  <option value="monoalphabetic">Monoalphabetic Substitution (Keyed / Full Alphabet)</option>
+                  <option value="polybius">Polybius Square (5x5 Coordinate Grid)</option>
                   <option value="rot13">ROT13 (Symmetric 13)</option>
                   <option value="rot47">ROT47 (ASCII 33-126)</option>
                   <option value="atbash">Atbash (Hebrew Mirror)</option>
@@ -370,6 +407,124 @@ export const EncryptView: React.FC<EncryptViewProps> = ({
                     onChange={(e) => setCaesarShift(parseInt(e.target.value, 10))}
                     className="w-full accent-indigo-500 cursor-pointer"
                   />
+                </div>
+              )}
+
+              {/* Monoalphabetic Substitution */}
+              {selectedCipher === 'monoalphabetic' && (
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <label htmlFor="substitution-key-input" className="text-xs text-slate-300 font-medium">
+                        Substitution Keyword or 26-Letter Alphabet
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setSubstitutionKey(generateRandomSubstitutionAlphabet())}
+                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium"
+                      >
+                        Shuffle 26 Letters
+                      </button>
+                    </div>
+                    <input
+                      id="substitution-key-input"
+                      type="text"
+                      value={substitutionKey}
+                      onChange={(e) => setSubstitutionKey(e.target.value.toUpperCase())}
+                      placeholder="e.g. ZEBRAS or full 26 unique letters..."
+                      className="w-full rounded border border-slate-800 bg-slate-900 p-2 text-xs text-slate-100 font-mono tracking-wider focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  {/* Alphabet visualizer */}
+                  {(() => {
+                    const norm = normalizeSubstitutionKey(substitutionKey);
+                    return (
+                      <div className="rounded border border-slate-800/80 bg-slate-950/80 p-2.5 font-mono text-[10px]">
+                        <div className="text-slate-400 mb-1 flex items-center justify-between">
+                          <span>Alphabet Mapping:</span>
+                          <span className={norm.valid ? 'text-emerald-400' : 'text-amber-400'}>
+                            {norm.valid ? 'Valid 26-Letter Bijection' : norm.error}
+                          </span>
+                        </div>
+                        <div className="overflow-x-auto pb-1">
+                          <div className="grid grid-cols-26 gap-1 min-w-[520px] text-center">
+                            {STANDARD_ALPHABET.split('').map((c, i) => (
+                              <div key={c} className="flex flex-col items-center">
+                                <span className="text-slate-500 font-semibold">{c}</span>
+                                <span className="text-slate-600">↓</span>
+                                <span className="text-indigo-300 font-bold bg-indigo-950/60 rounded px-0.5 border border-indigo-800/40">
+                                  {norm.alphabet[i]}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* Polybius Square 5x5 */}
+              {selectedCipher === 'polybius' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="polybius-key-input" className="block text-xs text-slate-400 mb-1">
+                        Optional Key (Generates Permuted 5x5 Grid)
+                      </label>
+                      <input
+                        id="polybius-key-input"
+                        type="text"
+                        value={polybiusKey}
+                        onChange={(e) => setPolybiusKey(e.target.value.toUpperCase())}
+                        placeholder="Leave blank for standard A-Z (I/J)..."
+                        className="w-full rounded border border-slate-800 bg-slate-900 p-2 text-xs text-slate-100 font-mono focus:border-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="polybius-separator-select" className="block text-xs text-slate-400 mb-1">
+                        Coordinate Separator
+                      </label>
+                      <select
+                        id="polybius-separator-select"
+                        value={polybiusSeparator}
+                        onChange={(e) => setPolybiusSeparator(e.target.value)}
+                        className="w-full rounded border border-slate-800 bg-slate-900 p-2 text-xs text-slate-200"
+                      >
+                        <option value=" ">Space ("23 15 31 31 34")</option>
+                        <option value="">None ("2315313134")</option>
+                        <option value="-">Hyphen ("23-15-31-31-34")</option>
+                      </select>
+                    </div>
+                  </div>
+                  {/* 5x5 Grid Display */}
+                  <div className="rounded border border-slate-800/80 bg-slate-950/80 p-2.5">
+                    <div className="text-[11px] text-slate-400 mb-1.5 font-medium">Polybius 5x5 Matrix (Rows × Columns):</div>
+                    <div className="inline-block font-mono text-xs">
+                      <div className="grid grid-cols-6 gap-1 text-center font-bold">
+                        <span className="text-slate-600">#</span>
+                        <span className="text-slate-400">1</span>
+                        <span className="text-slate-400">2</span>
+                        <span className="text-slate-400">3</span>
+                        <span className="text-slate-400">4</span>
+                        <span className="text-slate-400">5</span>
+                      </div>
+                      {generatePolybiusGrid(polybiusKey).map((row, rIdx) => (
+                        <div key={rIdx} className="grid grid-cols-6 gap-1 text-center my-0.5">
+                          <span className="text-slate-400 font-bold">{rIdx + 1}</span>
+                          {row.map((cell, cIdx) => (
+                            <span
+                              key={cIdx}
+                              className="rounded bg-slate-900 border border-slate-800 py-0.5 text-indigo-300 font-semibold"
+                            >
+                              {cell === 'I' ? 'I/J' : cell}
+                            </span>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
