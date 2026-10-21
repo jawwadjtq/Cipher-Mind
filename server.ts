@@ -37,9 +37,9 @@ if (apiKey) {
 }
 
 /**
- * API Root & Discovery
+ * API Root & Discovery (supports both /api and / in serverless)
  */
-app.get('/api', (_req: Request, res: Response) => {
+app.get(['/api', '/api/'], (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     name: 'CipherMind AI API',
@@ -49,9 +49,9 @@ app.get('/api', (_req: Request, res: Response) => {
 });
 
 /**
- * Health check endpoint
+ * Health check endpoint (supports both /api/health and /health)
  */
-app.get('/api/health', (_req: Request, res: Response) => {
+app.get(['/api/health', '/health'], (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     aiEnabled: Boolean(ai),
@@ -62,7 +62,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 /**
  * Diagnostic test status endpoint
  */
-app.get('/api/diagnostics', (_req: Request, res: Response) => {
+app.get(['/api/diagnostics', '/diagnostics'], (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     serverUptimeSeconds: Math.floor(process.uptime()),
@@ -242,7 +242,7 @@ function getLocalizedServerIdentify(inspection: any, targetLang: string) {
  * Endpoint: /api/gemini/explain
  * Generates structured educational explanation for a cipher decryption candidate in the user's chosen language
  */
-app.post('/api/gemini/explain', async (req: Request, res: Response) => {
+app.post(['/api/gemini/explain', '/gemini/explain'], async (req: Request, res: Response) => {
   try {
     const { candidate, ciphertext, userLanguage } = req.body;
     const targetLang = userLanguage || 'English';
@@ -340,7 +340,7 @@ Be strictly accurate, mathematical, and logical. Explain the exact mechanism (e.
  * Endpoint: /api/gemini/identify
  * Analyzes unknown ciphertext statistical profile and advises candidate avenues in user's choice language
  */
-app.post('/api/gemini/identify', async (req: Request, res: Response) => {
+app.post(['/api/gemini/identify', '/gemini/identify'], async (req: Request, res: Response) => {
   try {
     const { ciphertext, inspection, userLanguage } = req.body;
     const targetLang = userLanguage || 'English';

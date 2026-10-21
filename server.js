@@ -22,7 +22,7 @@ if (apiKey) {
     }
   });
 }
-app.get("/api", (_req, res) => {
+app.get(["/api", "/api/"], (_req, res) => {
   res.json({
     status: "ok",
     name: "CipherMind AI API",
@@ -30,14 +30,14 @@ app.get("/api", (_req, res) => {
     endpoints: ["/api/health", "/api/gemini/explain", "/api/gemini/identify", "/api/diagnostics"]
   });
 });
-app.get("/api/health", (_req, res) => {
+app.get(["/api/health", "/health"], (_req, res) => {
   res.json({
     status: "ok",
     aiEnabled: Boolean(ai),
     serverTime: (/* @__PURE__ */ new Date()).toISOString()
   });
 });
-app.get("/api/diagnostics", (_req, res) => {
+app.get(["/api/diagnostics", "/diagnostics"], (_req, res) => {
   res.json({
     status: "ok",
     serverUptimeSeconds: Math.floor(process.uptime()),
@@ -188,7 +188,7 @@ function getLocalizedServerIdentify(inspection, targetLang) {
     ]
   };
 }
-app.post("/api/gemini/explain", async (req, res) => {
+app.post(["/api/gemini/explain", "/gemini/explain"], async (req, res) => {
   try {
     const { candidate, ciphertext, userLanguage } = req.body;
     const targetLang = userLanguage || "English";
@@ -273,7 +273,7 @@ Be strictly accurate, mathematical, and logical. Explain the exact mechanism (e.
     });
   }
 });
-app.post("/api/gemini/identify", async (req, res) => {
+app.post(["/api/gemini/identify", "/gemini/identify"], async (req, res) => {
   try {
     const { ciphertext, inspection, userLanguage } = req.body;
     const targetLang = userLanguage || "English";
