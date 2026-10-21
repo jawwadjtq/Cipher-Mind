@@ -38,6 +38,11 @@ async function runBuild() {
   const generatedFiles = fs.readdirSync(distDir);
   console.log('✓ [1/2] Client build complete -> dist/ (' + generatedFiles.length + ' files: ' + generatedFiles.join(', ') + ')');
 
+  // Also mirror to build/ for environments configured with 'build' as output directory
+  const buildDir = path.resolve(__dirname, 'build');
+  fs.cpSync(distDir, buildDir, { recursive: true });
+  console.log('✓ [1/2] Mirrored build output to build/ directory');
+
   // 2. Compile Express / Gemini Server with esbuild
   console.log('⚙️  [2/2] Compiling backend server.ts with esbuild...');
   await esbuild.build({
